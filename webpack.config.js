@@ -17,7 +17,8 @@ module.exports = function({ prod } = {}) {
       modules: ['src', 'node_modules']
     },
     externals: {
-      fabric: 'fabric'
+      THREE: 'THREE',
+      three: 'THREE'
     },
     devtool: false,
     module: {

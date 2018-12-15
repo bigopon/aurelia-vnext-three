@@ -121,6 +121,12 @@ import { DOM } from './dom';
     if (node.hasAttribute('y')) {
       canvas.style.top = `${node.getAttribute('y')}px`;
     }
+    // if (node.hasAttribute('width')) {
+    //   canvas.style.width = `${node.getAttribute('width')}px`;
+    // }
+    // if (node.hasAttribute('height')) {
+    //   canvas.style.height = `${node.getAttribute('height')}px`;
+    // }
     return canvas;
   }
   VNode.invokeNativeObject = (node: VNode<ThreeObject>, ...args: any[]) => {
@@ -129,6 +135,7 @@ import { DOM } from './dom';
       case 't-webgl': {
         const canvas = getCanvasFromVNode(node);
         const renderer = new THREE.WebGLRenderer({ canvas });
+        renderer.setSize(Number(node.getAttribute('width')), Number(node.getAttribute('height')));
         node.nativeObject = renderer;
         let i = 0;
         let childVNodes = node.childNodes;
@@ -153,26 +160,47 @@ import { DOM } from './dom';
         }
         break;
       }
-      case 't-group':
+      case 't-group': {
         // todo: convert node.attributes into appropriate group props
         node.nativeObject = new THREE.Group();
-        {
-          let $i = 0;
-          let $childVNodes = node.childNodes;
-          while ($i < $childVNodes.length) {
-            let $childVNode = $childVNodes[$i];
-            $childVNode.invokeNativeObject();
-            VNode.appendChild($childVNode, node);
-            $i++;
-          }
+        let i = 0;
+        let childVNodes = node.childNodes;
+        while (i < childVNodes.length) {
+          let childVNode = childVNodes[i];
+          childVNode.invokeNativeObject();
+          VNode.appendChild(childVNode, node);
+          i++;
         }
         break;
+      }
       case 't-orthographic-camera':
       case 't-perspective-camera':
       case 't-stereo-camera':
       case 't-camera':
-        node.nativeObject = tryAssignAttr(new THREE.PerspectiveCamera(), node.attributes);
+        const cam = new THREE.PerspectiveCamera();
+        const pos = node.getAttribute('position').split(' ').map(Number);
+        cam.position.x += pos[0] || 0;
+        cam.position.y += pos[1] || 0;
+        cam.position.z += pos[2] || 0;
+        if (node.hasAttribute('far')) {
+          cam.far = Number(node.getAttribute('far')) || 0;
+        }
+        node.nativeObject = cam;
         break;
+      case 't-scene': {
+        let scene = new THREE.Scene();
+        scene.background = node.getAttribute('background');
+        node.nativeObject = scene;
+        let i = 0;
+        let childVNodes = node.childNodes;
+        while (i < childVNodes.length) {
+          let childVNode = childVNodes[i];
+          childVNode.invokeNativeObject();
+          VNode.appendChild(childVNode, node);
+          i++;
+        }
+        break;
+      }
       case 't-mesh': {
         let geometry: THREE.Geometry;
         let material: THREE.Material;
@@ -194,6 +222,10 @@ import { DOM } from './dom';
       case 't-geo-box':
         const box = new THREE.BoxGeometry(...getNumberAttributes(['width', 'height', 'depth'], node.attributes, true));
         node.nativeObject = box;
+        break;
+      case 't-material':
+        const mat = new THREE.MeshBasicMaterial({ color: node.getAttribute('color') });
+        node.nativeObject = mat;
         break;
       case 't-light': case 't-bone': case 't-group': case 't-lod': case 't-line': case 't-mesh': case 't-point': case 't-sprite':
       case 't-scene': case 't-audio': case 't-audio-listener': case 't-arrow-helper': case 't-directional-arrow-helper':
@@ -217,8 +249,15 @@ import { DOM } from './dom';
       }
       return;
     }
-    if (!ThreejsDOM.isObject3D(parentNativeObject)) {
-      throw new Error('Parent node is not a ThreeJs.Group instance');
+    if (parentNodeName === 't-webgl') {
+      // what to do?
+      window['renderer'] = parentNativeObject;
+      window['rendererVNode'] = parentNode;
+      return;
+    } else {
+      if (!ThreejsDOM.isObject3D(parentNativeObject)) {
+        throw new Error('Parent node is not a ThreeJs.Group instance');
+      }
     }
     if (!ThreejsDOM.isObject3D(nodeNativeObject)) {
       throw new Error('Node is not a ThreeJs.Object3D instance.');

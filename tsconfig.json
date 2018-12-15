@@ -7,10 +7,7 @@
     "module": "es2015",
     "moduleResolution": "node",
     "baseUrl": "src",
-    "target": "es2018",
-    "types": [
-      "fabric"
-    ]
+    "target": "es2018"
   },
   "include": ["src"]
 }

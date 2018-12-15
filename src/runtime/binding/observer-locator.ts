@@ -1,3 +1,5 @@
+/// <reference path="../fabric-types.d.ts" />
+import * as THREE from 'three';
 import { DI, IIndexable, inject, Primitive, Reporter } from '../../kernel';
 import { DOM, IHTMLElement, IInputElement } from '../dom';
 import { ILifecycle } from '../lifecycle';
@@ -17,7 +19,7 @@ import { getSetObserver } from './set-observer';
 import { ISVGAnalyzer } from './svg-analyzer';
 import { ClassAttributeAccessor, DataAttributeAccessor, ElementPropertyAccessor, PropertyAccessor, StyleAttributeAccessor, XLinkAttributeAccessor } from './target-accessors';
 import { ThreejsDOM, IFabricNode } from '../three-dom';
-import { FabricPropertyObserver } from './fabric-observer';
+import { FabricPropertyObserver as ThreePropertyObserver } from './fabric-observer';
 import { I3VNode } from 'runtime/three-vnode';
 import { VNode } from 'dom/node';
 
@@ -92,8 +94,16 @@ export class ObserverLocator implements IObserverLocator {
   }
 
   public getAccessor(obj: IObservable, propertyName: string): IBindingTargetAccessor {
-    if (obj instanceof VNode && ThreejsDOM.isNodeInstance(obj.nativeObject)) {
-      return new FabricPropertyAccessor(obj, propertyName);
+    if (obj instanceof VNode) {
+      if (ThreejsDOM.isObject3D(obj.nativeObject)) {
+        return new ThreePropertyAccessor(obj, propertyName);
+      }
+      if (obj.nativeObject.isMesh && propertyName === 'rotation') {
+        return new ThreePropertyAccessor(obj, propertyName);
+      }
+      if (obj.nativeObject.isMeshBasicMaterial && propertyName === 'color') {
+        return new ThreeMeshBasicMaterialColorPropertyAccessor(obj, propertyName);
+      }
     }
     if (DOM.isNodeInstance(obj)) {
       const tagName = obj['tagName'];
@@ -169,17 +179,16 @@ export class ObserverLocator implements IObserverLocator {
       return new PrimitiveObserver(obj as any, propertyName) as IBindingTargetAccessor;
     }
 
-    if (obj instanceof VNode && ThreejsDOM.isNodeInstance(obj.nativeObject)) {
+    if (obj instanceof VNode && ThreejsDOM.isObject3D(obj.nativeObject)) {
       if (propertyName === 'x'
         || propertyName === 'top'
         || propertyName === 'y'
+        || propertyName === 'z'
         || propertyName === 'left'
-        || propertyName === 'width'
-        || propertyName === 'height'
         || propertyName === 'rx'
         || propertyName === 'ry'
       ) {
-        return new FabricPropertyObserver(this.lifecycle, obj, propertyName);
+        return new ThreePropertyObserver(this.lifecycle, obj, propertyName);
       }
     }
 
@@ -280,14 +289,24 @@ export function getCollectionObserver(lifecycle: ILifecycle, collection: IObserv
 }
 
 
-interface FabricPropertyAccessor extends IBindingTargetAccessor<IIndexable, string, Primitive | IIndexable> {}
-class FabricPropertyAccessor implements PropertyAccessor {
+interface ThreePropertyAccessor extends IBindingTargetAccessor<IIndexable, string, Primitive | IIndexable> {}
+class ThreePropertyAccessor implements PropertyAccessor {
   constructor(public obj: I3VNode, public propertyKey: string) {
     const nativeObject = obj.nativeObject;
-    const type = nativeObject.type;
-    if (type === 'canvas' || type === 'canvas') {
-      if (propertyKey === 'width' || propertyKey === 'height') {
-        this.getValue = this[`getCanvas${propertyKey}`];
+    // const type = nativeObject;
+    // if (type === 'canvas' || type === 'canvas') {
+    //   if (propertyKey === 'width' || propertyKey === 'height') {
+    //     this.getValue = this[`getCanvas${propertyKey}`];
+    //   }
+    // }
+    if (ThreejsDOM.isObject3D(nativeObject)) {
+      if (propertyKey === 'x' || propertyKey === 'y' || propertyKey === 'z') {
+        this.getValue = this[`get${propertyKey.toUpperCase()}`];
+        this.setValue = this[`set${propertyKey.toUpperCase()}`];
+      }
+      if (propertyKey === 'rotation') {
+        this.getValue = this.getRotation;
+        this.setValue = this.setRotation;
       }
     }
   }
@@ -300,19 +319,79 @@ class FabricPropertyAccessor implements PropertyAccessor {
     this.obj.nativeObject[this.propertyKey] = value;
   }
 
-  public getCanvasWidth() {
-    return (this.obj.nativeObject as any as fabric.StaticCanvas).getWidth();
+  public getX() {
+    return (this.obj.nativeObject as THREE.Object3D).position.x;
   }
 
-  public setCanvasWidth(value: Primitive | IIndexable): void {
-    (this.obj.nativeObject as any as fabric.StaticCanvas).setWidth(value as number);
+  public setX(val: number) {
+    return (this.obj.nativeObject as THREE.Object3D).position.x = val;
   }
 
-  public getCanvasHeight() {
-    return (this.obj.nativeObject as any as fabric.StaticCanvas).getHeight();
+  public getY() {
+    return (this.obj.nativeObject as THREE.Object3D).position.y;
   }
+
+  public setY(val: number) {
+    return (this.obj.nativeObject as THREE.Object3D).position.y = val;
+  }
+
+  public getZ() {
+    return (this.obj.nativeObject as THREE.Object3D).position.z;
+  }
+
+  public setZ(val: number) {
+    return (this.obj.nativeObject as THREE.Object3D).position.z = val;
+  }
+
+  public setRotation(val: string) {
+    const mesh = this.obj.nativeObject as THREE.Mesh;
+    const vals = val.split(' ').map(Number).filter(n => !isNaN(n));
+    // console.log(val, vals);
+    switch (vals.length) {
+      case 3:
+        mesh.rotation.z = vals[2];
+      case 2:
+        mesh.rotation.y = vals[1];
+      case 1:
+        mesh.rotation.x = vals[0];
+    }
+  }
+
+  public getRotation() {
+    const mesh = this.obj.nativeObject as THREE.Mesh;
+    const rotation = mesh.rotation;
+    return `${rotation.x} ${rotation.y} ${rotation.z}`;
+  }
+
+  // public setCanvasWidth(value: Primitive | IIndexable): void {
+  //   (this.obj.nativeObject as any as fabric.StaticCanvas).setWidth(value as number);
+  // }
+
+  // public getCanvasHeight() {
+  //   return (this.obj.nativeObject as any as fabric.StaticCanvas).getHeight();
+  // }
   
-  public setCanvasHeight(value: Primitive | IIndexable): void {
-    (this.obj.nativeObject as any as fabric.StaticCanvas).setHeight(value as number);
+  // public setCanvasHeight(value: Primitive | IIndexable): void {
+  //   (this.obj.nativeObject as any as fabric.StaticCanvas).setHeight(value as number);
+  // }
+}
+
+interface ThreeMeshBasicMaterialColorPropertyAccessor extends IBindingTargetAccessor<IIndexable, string, Primitive | IIndexable> {}
+class ThreeMeshBasicMaterialColorPropertyAccessor implements PropertyAccessor {
+  constructor(public obj: I3VNode, public propertyKey: string) {
+  }
+
+  public setValue(color: Primitive | IIndexable): void {
+    const $color = new THREE.Color(color as string);
+    const mesh = this.obj.nativeObject as THREE.MeshBasicMaterial;
+    mesh.color.r = $color.r;
+    mesh.color.b = $color.b;
+    mesh.color.g = $color.g;
+  }
+
+  public getValue() {
+    const mesh = this.obj.nativeObject as THREE.MeshBasicMaterial;
+    const color = mesh.color;
+    return `${color.r} ${color.g} ${color.b}`;
   }
 }

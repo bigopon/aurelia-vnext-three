@@ -260,7 +260,7 @@ export class FabricTextNodeSequence implements IFabricNodeSequence {
 // a string of markup would also receive an instance of this.
 // CompiledTemplates create instances of FragmentNodeSequence.
 /*@internal*/
-export class FabricFragmentNodeSequence implements IFabricNodeSequence {
+export class ThreeFragmentNodeSequence implements IFabricNodeSequence {
   public firstChild: I3VNode;
   public lastChild: I3VNode;
   public children: ReadonlyArray<Node>;
@@ -384,6 +384,7 @@ export class FabricFragmentNodeSequence implements IFabricNodeSequence {
         let parentVNode = new VNode(parentNodeName, false);
         parentVNode.nativeObject = parent;
         parentVNode.appendChild(c);
+        VNode.appendChild(c, parentVNode);
       }
     });
     // this can never be a RenderLocation, and if for whatever reason we moved
@@ -459,7 +460,7 @@ export class ThreeJsNodeSequenceFactory {
       default:
         this.deepClone = true;
         this.node = fragment;
-        this.Type = FabricFragmentNodeSequence;
+        this.Type = ThreeFragmentNodeSequence;
     }
   }
   public static createFor(markupOrNode: string | INode): ThreeJsNodeSequenceFactory {
@@ -499,7 +500,7 @@ function nodeTo3VNodes(
         const attributes = (node as Element).attributes;
         const isTarget = (node as Element).classList.contains('au');
         if (!insideVNodeTree) {
-          if (customRendererTargetRootNames.includes(nodeName)) {
+          if (customRendererTargetRootNames.includes(nodeName.toLowerCase())) {
             // a Root vNode
             let threeVNode: I3VNode = new VNode(nodeName.toLowerCase(), isTarget);
             for (let i = 0, ii = attributes.length; ii > i; ++i) {
@@ -540,13 +541,14 @@ function nodeTo3VNodes(
           if (parent === null) {
             throw new Error('Invalid operation. Expected a parent when already inside a vnode tree');
           }
+          // debugger;
           parent.appendChild(threeVNode);
           // if it's a normal node, then there is nothing to do beside pushing the node to target list
           // if it's a target node
           if (isTarget) {
-            targets.push(node);
+            targets.push(threeVNode);
           }
-          nodeTo3VNodes(nodesOwner, node.childNodes, threeVNode, targets, customRendererTargetRootNames, customRendererTargetRoots, false);
+          nodeTo3VNodes(nodesOwner, node.childNodes, threeVNode, targets, customRendererTargetRootNames, customRendererTargetRoots, true);
         }
         break;
       // case NodeTypes.TEXT:

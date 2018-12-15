@@ -73,7 +73,7 @@ export class Listener implements IBinding {
       sourceExpression.bind(flags, scope, this);
     }
 
-    this.target.nativeObject.on(this.targetEvent, this.handleEvent);
+    // this.target.nativeObject.on(this.targetEvent, this.handleEvent);
 
     // should it be normalized in uicontrol
     // (this.target as any).onChanged(this.handleEvent);
@@ -104,7 +104,7 @@ export class Listener implements IBinding {
     }
 
     this.$scope = null;
-    this.target.nativeObject.off(this.targetEvent, this.handleEvent);
+    // this.target.nativeObject.off(this.targetEvent, this.handleEvent);
     // this.handler.dispose();
     this.handler = null;
 

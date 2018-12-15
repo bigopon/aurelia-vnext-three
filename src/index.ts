@@ -1,7 +1,6 @@
-/// <reference types="fabric" />
 import 'reflect-metadata';
 // import { init, Element, HTMLElement } from './basichtml';
-import { DOM, Aurelia } from './runtime';
+import { DOM, Aurelia, ValueConverterResource } from './runtime';
 import { observable } from './observable';
 
 // const doc = init().document;
@@ -11,77 +10,68 @@ import { BasicConfiguration } from './jit';
 
 import { customElement } from './runtime';
 
-const ct = document.body.appendChild(document.createElement('div'));
-Object.assign(ct.style,  {
-	width: '650px',
-	height: '450px',
-	border: '1px solid blue',
-	background: '#f2f2f2'
-});
-
-function renderCanvas(canvas1: fabric.Canvas, canvas2: fabric.Canvas, canvas3, canvas4) {
-	canvas1.renderAll();
-	canvas2.renderAll();
-	canvas3.renderAll();
-	canvas4.renderAll();
-}
-
 @customElement({
   name: 'app',
   template: /*html*/ `
 	<template>
-		<canvas width="300" height="200" background-color="#c3c3c3" ref="canvas1">
-			<rect stroke="red" fill="blue" width="50" height="50" top.two-way="x" left.two-way="y"></rect>
-		</canvas>
-		<canvas y="250" width="300" height="200" background-color="#35a3f2" ref="canvas2">
-			<rect stroke="red" fill="green" width="75" height="75" top.two-way="x" left.two-way="y"></rect>
-		</canvas>
-		<canvas x="350" width="300" height="200" background-color="lightpink" ref="canvas3">
-			<rect stroke="red" fill="magneto" width="40" height="85" top.two-way="x" left.two-way="y"></rect>
-		</canvas>
-		<canvas x="350" y="250" width="300" height="200" background-color="#ffde03" ref="canvas4">
-			<rect stroke="darkgreen" fill="orangered" width="80" height="40" top.two-way="x" left.two-way="y"></rect>
-		</canvas>
+		<div>Hello world</div>
+		<select value.two-way='meshcolor'>
+			<option>lightblue</option>
+			<option>lightpink</option>
+			<option>yellow</option>
+		</select>
+		<div>
+			X rotation: \${xStep}
+			<input type='range' value.two-way='xStep | number' step='0.01' min=0.01 max=0.1 >
+			Y rotation: \${yStep}
+			<input type='range' value.two-way='yStep | number' step='0.01' min=0.01 max=0.1 >
+		</div>
+		<hr>
+		<t-webgl ref='renderer' width='400' height='400'>
+			<t-scene background='white' ref='scene'>
+				<t-mesh rotation="\${x} \${y} 0" ref='cube'>
+					<t-geo-box width="1" height="1" depth="1"></t-geo-box>
+					<t-material color.bind="meshcolor"></t-material>
+				</t-mesh>
+			</t-scene>
+			<t-camera far="5" position="0 0 3" ref='camera'></t-camera>
+		</t-webgl>
   </template>`
 })
 export class App {
+	x = 0;
+	y = 0;
+	xStep = 0.01;
+	yStep = 0.01;
+	meshcolor = 'lightpink'
 
-	@observable({ changeHandler: 'renderCanvas' })
-	x = 10;
-
-	@observable({ changeHandler: 'renderCanvas' })
-	y = 10;
-
-	canvas1: fabric.Canvas;
-	canvas2: fabric.Canvas;
-	canvas3: fabric.Canvas;
-	canvas4: fabric.Canvas;
-
-  constructor() {
-		window['app'] = this;
-	}
+	renderer: THREE.Renderer;
+	scene: THREE.Scene;
+	camera: THREE.PerspectiveCamera;
 
 	attached() {
-		this.renderCanvas();
+		requestAnimationFrame(this.animate);
 	}
 
-	/**
-	 * To update all canvas at the same times
-	 * fabric only rerender when it's interacted with, or explicitly called
-	 */
-	renderCanvas() {
-		if (this.canvas1) {
-			setTimeout(renderCanvas, 20, this.canvas1, this.canvas2, this.canvas3, this.canvas4);
-		}
+	animate = () => {
+		this.x += this.xStep;
+		this.y += this.yStep;
+		requestAnimationFrame(this.animate);
+		this.renderer.render(this.scene, this.camera);
 	}
 }
 
 window['au'] = new Aurelia()
 	.register(
 		BasicConfiguration,
+		ValueConverterResource.define('number', class {
+			fromView(val: string) {
+				return Number(val);
+			}
+		})
 	)
 	.app({
 		component: App,
-		host: ct
+		host: document.body
 	})
 	.start();

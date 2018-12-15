@@ -62,14 +62,14 @@ export class FabricPropertyObserver implements FabricPropertyObserver {
   public subscribe(subscriber: IPropertySubscriber): void {
     if (!this.hasSubscribers()) {
       this.oldValue = this.getValue();
-      this.obj.nativeObject.on(this.targetEvent, this.handleEvent);
+      // this.obj.nativeObject.on(this.targetEvent, this.handleEvent);
     }
     this.addSubscriber(subscriber);
   }
 
   public unsubscribe(subscriber: IPropertySubscriber): void {
     if (this.removeSubscriber(subscriber) && !this.hasSubscribers()) {
-      this.obj.nativeObject.off(this.targetEvent, this.handleEvent);
+      // this.obj.nativeObject.off(this.targetEvent, this.handleEvent);
     }
   }
 

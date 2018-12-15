@@ -110,7 +110,7 @@ export class PropertyBindingRenderer implements IInstructionRenderer {
     this.observerLocator = observerLocator;
   }
 
-  public render(context: IRenderContext, renderable: IRenderable, target: INode, instruction: IPropertyBindingInstruction): void {
+  public render(context: IRenderContext, renderable: IRenderable, target: Node | I3VNode, instruction: IPropertyBindingInstruction): void {
     const expr = ensureExpression(this.parser, instruction.from, BindingType.IsPropertyCommand | instruction.mode);
     const bindable = new Binding(expr, target, instruction.to, instruction.mode, this.observerLocator, context);
     addBindable(renderable, bindable);
